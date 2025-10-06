@@ -5,20 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class FacilityType extends Model
+class GuestType extends Model
 {
     use SoftDeletes;
-    protected $table = 'facility_types';
+    protected $table = 'guest_types';
     
     public $timestamps = true;
 
     protected $fillable = [
         'name', 
-        'description', 
+        'description',
     ];
 
-    public function facilities()
+    public function rates()
     {
-        return $this->hasMany(Facility::class, 'facility_type_id');
+        return $this->hasMany(Rate::class);
     }
 }

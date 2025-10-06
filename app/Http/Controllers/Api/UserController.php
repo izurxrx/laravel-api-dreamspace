@@ -17,37 +17,34 @@ class UserController extends Controller
 
    public function getAllUsers()
    {
-       $users = User::where('is_active', 1)->get();
-       return UserResource::collection($users);
+        $users = User::where('is_active', 1)
+            ->get();
+        return UserResource::collection($users);
    }
 
    public function addUser(Request $request)
    {    
-         $request->validate([
-              'fullName' => 'required|string',
-              'username' => 'required|string|unique:users,username',
-              'password' => 'required|string|min:6',
-              'role' => 'required|string',
-         ]);
-    
-         $user = new User();
-         $user->fullName = $request->fullName;
-         $user->username = $request->username;
-         $user->password = Hash::make($request->password);
-         $user->role = $request->role;
-         $user->modified_at = now(); // keep this if you use modified_at as updated_at
-         $user->save();
-    
-         return response()->json([
-              "status" => "success",
-              "message" => "User added successfully",
-              "user" => new UserResource($user)
-         ], 201);
+        $validated = $request->validate([
+            'fullName' => 'required|string',
+            'username' => 'required|string|unique:users,username',
+            'password' => 'required|string|min:6',
+            'role' => 'required|string',
+        ]);
+
+        $validated['password'] = Hash::make($validated['password']);
+
+        $user = User::create($validated);
+
+        return response()->json([
+            "status" => "success",
+            "message" => "User added successfully",
+            "user" => new UserResource($user)
+        ], 201);
     }
 
     public function editUser(Request $request, $id)
     {
-        $request->validate([
+        $validated = $request->validate([
             'fullName' => 'required|string',
             'username' => 'required|string|unique:users,username,' . $id,
             'password' => 'nullable|string|min:6',
@@ -55,13 +52,17 @@ class UserController extends Controller
         ]);
 
         $user = User::findOrFail($id);
-        $user->fullName = $request->fullName;
-        $user->username = $request->username;
-        if ($request->filled('password')) {
-            $user->password = Hash::make($request->password);
+
+        $user->fill([
+            'fullName' => $validated['fullName'],
+            'username' => $validated['username'],
+            'role' => $validated['role'],
+        ]);
+
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
         }
-        $user->role = $request->role;
-        $user->modified_at = now();
+
         $user->save();
 
         return response()->json([
@@ -87,7 +88,6 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $user->is_active = true;
-        $user->modified_at = now();
         $user->save();
 
         return response()->json([

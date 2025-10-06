@@ -10,22 +10,23 @@ class RateResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'rateName' => $this->rate_name,
-            'rateCategory' => $this->rate_category,
-            'facilityId' => $this->facility_id,
-            'rateType' => $this->rate_type,
-            'timePeriod' => $this->time_period,
-            'baseRate' => $this->base_rate,
-            'durationHours' => $this->duration_hours,
-            'durationType' => $this->duration_type,
-            'applicableHours' => $this->applicable_hours,
-            'maxBookingTime' => $this->max_booking_time,
+            'rate_category' => $this->rate_category,
+            'facility_id' => $this->facility_id,
+            'guest_type_id' => $this->guest_type_id,
+            'rate_type' => $this->rate_type,
+            'duration_hours' => $this->duration_hours,
+            'time_period' => $this->time_period,
+            'base_rate' => number_format($this->base_rate, 2),
             'description' => $this->description,
             'status' => $this->status,
-            'extensionFee' => $this->extension_fee,
-            'isActive' => $this->is_active,
-            'createdAt' => $this->created_at,
-            'updatedAt' => $this->updated_at,
+            'extension_fee' => number_format($this->extension_fee, 2),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+            
+            'facility' => new FacilityResource($this->whenLoaded('facility')),
+            'guest_type' => new GuestTypeResource($this->whenLoaded('guestType')),
+            'discounts' => DiscountResource::collection($this->whenLoaded('discounts')),
+            'rate_discounts' => RateDiscountResource::collection($this->whenLoaded('rateDiscounts'))
         ];
     }
 }

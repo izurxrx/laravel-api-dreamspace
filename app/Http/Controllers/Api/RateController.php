@@ -2,74 +2,47 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Http\Resources\RateResource;
 use App\Models\Rate;
-use App\Models\EntranceFee;
-use App\Http\Resources\EntranceFeeResource;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+
+
 
 class RateController extends Controller
 {
     public function getAllRates()
     {
-        $rates = Rate::where('is_active', 1)
-            ->orderBy('rate_name')
-            ->get();
-        return RateResource::collection($rates);
-    }
-
-    public function getEntranceFees()
-    {
-        $fees = EntranceFee::where('is_active', 1)
-            ->orderBy('guest_type')
-            ->get();
-
-        return EntranceFeeResource::collection($fees);
-    }
-
-    public function getExclusiveRates()
-    {
-        $rates = Rate::where('is_active', 1)
-            ->where('rate_category', 'exclusive')
-            ->orderBy('rate_name')
-            ->get();
+        $rates = Rate::all();
         return RateResource::collection($rates);
     }
 
     public function addRate(Request $request)
     {
-        // Validate input
         $request->validate([
-            'rateName' => 'required|string|max:100',
-            'rateCategory' => 'required|string|in:entrance_fee,exclusive',
-            'facilityId' => 'required|integer|exists:facilities,id',
-            'rateType' => 'required|string|in:per_hour,per_day,flat_rate',
-            'timePeriod' => 'nullable|string|max:50',
-            'baseRate' => 'required|numeric|min:0',
+            'rateCategory' => 'required|string|in:facility,exclusive,entrance',
+            'facilityId' => 'nullable|integer|exists:facilities,id',
+            'guestTypeId' => 'nullable|integer|exists:guest_types,id',
+            'rateType' => 'required|string|in:Day-Based,Time-Based,Per-Head',
             'durationHours' => 'nullable|integer|min:0',
-            'durationType' => 'nullable|string|max:50',
-            'applicableHours' => 'nullable|string|max:100',
-            'maxBookingTime' => 'nullable|string|max:100',
+            'timePeriod' => 'required|string|in:AM,PM',
+            'baseRate' => 'required|numeric|min:0',
             'description' => 'nullable|string',
+            'status' => 'required|string|in:active,inactive',
             'extensionFee' => 'nullable|numeric|min:0',
         ]);
 
-        // Create rate
         $rate = Rate::create([
-            'rate_name' => $request->rateName,
             'rate_category' => $request->rateCategory,
-            'facility_id' => $request->facilityId,
+            'facility_id' => $request->facilityId ?? null,
+            'guest_type_id' => $request->guestTypeId ?? null,
             'rate_type' => $request->rateType,
-            'time_period' => $request->timePeriod ?? '',
+            'duration_hours' => $request->durationHours ?? null,
+            'time_period' => $request->timePeriod,
             'base_rate' => $request->baseRate,
-            'duration_hours' => $request->durationHours ?? 0,
-            'duration_type' => $request->durationType ?? '',
-            'applicable_hours' => $request->applicableHours ?? '',
-            'max_booking_time' => $request->maxBookingTime ?? '',
             'description' => $request->description ?? '',
+            'status' => $request->status,
             'extension_fee' => $request->extensionFee ?? 0,
-            'is_active' => 1,
         ]);
 
         return response()->json([
@@ -81,35 +54,32 @@ class RateController extends Controller
 
     public function editRate(Request $request, $id)
     {
-        // Validate input
         $request->validate([
-            'rateName' => 'required|string|max:100',
-            'rateCategory' => 'required|string|in:entrance_fee,exclusive',
-            'facilityId' => 'required|integer|exists:facilities,id',
-            'rateType' => 'required|string|in:per_hour,per_day,flat_rate',
-            'timePeriod' => 'nullable|string|max:50',
-            'baseRate' => 'required|numeric|min:0',
+            'rateCategory' => 'required|string|in:facility,exclusive,entrance',
+            'facilityId' => 'nullable|integer|exists:facilities,id',
+            'guestTypeId' => 'nullable|integer|exists:guest_types,id',
+            'rateType' => 'required|string|in:Day-Based,Time-Based,Per-Head',
             'durationHours' => 'nullable|integer|min:0',
-            'durationType' => 'nullable|string|max:50',
-            'applicableHours' => 'nullable|string|max:100',
-            'maxBookingTime' => 'nullable|string|max:100',
+            'timePeriod' => 'required|string|in:AM,PM',
+            'baseRate' => 'required|numeric|min:0',
             'description' => 'nullable|string',
+            'status' => 'required|string|in:active,inactive',
             'extensionFee' => 'nullable|numeric|min:0',
         ]);
 
         $rate = Rate::findOrFail($id);
-        $rate->rate_name = $request->rateName;
+
         $rate->rate_category = $request->rateCategory;
-        $rate->facility_id = $request->facilityId;
+        $rate->facility_id = $request->facilityId ?? null;
+        $rate->guest_type_id = $request->guestTypeId ?? null;
         $rate->rate_type = $request->rateType;
-        $rate->time_period = $request->timePeriod ?? '';
+        $rate->duration_hours = $request->durationHours ?? null;
+        $rate->time_period = $request->timePeriod;
         $rate->base_rate = $request->baseRate;
-        $rate->duration_hours = $request->durationHours ?? 0;
-        $rate->duration_type = $request->durationType ?? '';
-        $rate->applicable_hours = $request->applicableHours ?? '';
-        $rate->max_booking_time = $request->maxBookingTime ?? '';
         $rate->description = $request->description ?? '';
+        $rate->status = $request->status;
         $rate->extension_fee = $request->extensionFee ?? 0;
+
         $rate->save();
 
         return response()->json([
@@ -119,11 +89,11 @@ class RateController extends Controller
         ]);
     }
 
+
     public function archiveRate($id)
     {
         $rate = Rate::findOrFail($id);
-        $rate->is_active = 0;
-        $rate->save();
+        $rate->delete();
 
         return response()->json([
             "status" => "success",
@@ -134,9 +104,8 @@ class RateController extends Controller
 
     public function restoreRate($id)
     {
-        $rate = Rate::findOrFail($id);
-        $rate->is_active = 1;
-        $rate->save();
+        $rate = Rate::onlyTrashed()->findOrFail($id);
+        $rate->restore();
 
         return response()->json([
             "status" => "success",
@@ -147,9 +116,7 @@ class RateController extends Controller
 
     public function viewArchivedRates()
     {
-        $rates = Rate::where('is_active', 0)
-            ->orderBy('rate_name')
-            ->get();
+        $rates = Rate::onlyTrashed()->get();
         return RateResource::collection($rates);
     }
 }

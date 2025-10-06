@@ -13,16 +13,13 @@ class FacilityController extends Controller
 {
     public function getAllFacilities()
     {
-        $facilities = Facility::where('is_active', 1)
-            ->with('facilityType')
-            ->orderBy('name')
-            ->get();
+        $facilities = Facility::with('facilityType')->get();
         return FacilityResource::collection($facilities);
     }
 
     public function getAllFacilityTypes()
     {
-        $facilities = FacilityType::where('is_active', 1)->get(['id', 'name']);
+        $facilities = FacilityType::all();
         return FacilityTypeResource::collection($facilities);
     }
 
@@ -30,10 +27,10 @@ class FacilityController extends Controller
     {
         // Validate input
         $request->validate([
-            'name' => 'required|string|max:100',
+            'name' => 'required|string|max:100|unique:facilities,name',
             'facility_type_id' => 'required|integer|exists:facility_types,id',
-            'quantity' => 'required|integer|min:1',
             'description' => 'nullable|string',
+            'quantity' => 'required|integer|min:1',
             'expectedCapacity' => 'nullable|integer|min:0',
             'maxCapacity' => 'nullable|integer|min:0',
         ]);
@@ -46,11 +43,10 @@ class FacilityController extends Controller
             'quantity' => $request->quantity,
             'expected_capacity' => $request->expectedCapacity ?? 0,
             'max_capacity' => $request->maxCapacity ?? 0,
-            'is_active' => 1,
         ]);
         
         return response()->json([
-            "status" => "success",
+            "success" => true,
             "message" => "Facility added successfully",
             "facility" => new FacilityResource($facility)
         ], 201);
@@ -66,12 +62,11 @@ class FacilityController extends Controller
         // Create facility type
         $facilityType = FacilityType::create([
             'name' => trim($request->name),
-            'is_active' => 1,
         ]);
         
         return response()->json([
-            "status" => true,
-            "message" => "Facility type added successfully",
+            "success" => true,
+            "message" => "Facility Type added successfully",
             "facilityType" => new FacilityTypeResource($facilityType)
         ], 201);
     }
@@ -79,7 +74,7 @@ class FacilityController extends Controller
     public function editFacility(Request $request, $id)
     {
         $request->validate([
-            'name' => 'required|string|max:100',
+            'name' => 'required|string|max:100|unique:facilities,name,',
             'facility_type_id' => 'required|integer|exists:facility_types,id',
             'quantity' => 'required|integer|min:1',
             'description' => 'nullable|string',
@@ -87,15 +82,16 @@ class FacilityController extends Controller
             'maxCapacity' => 'nullable|integer|min:0',
         ]);
 
-        $facility = Facility::where('id', $id)->where('is_active', 1)->firstOrFail();
+         $facility = Facility::findOrFail($id);
 
-        $facility->name = $request->name;
-        $facility->facility_type_id = $request->facility_type_id;
-        $facility->description = $request->description ?? '';
-        $facility->quantity = $request->quantity;
-        $facility->expected_capacity = $request->expectedCapacity ?? 0;
-        $facility->max_capacity = $request->maxCapacity ?? 0;
-        $facility->save();
+        $facility->update([
+            'name' => $request->name,
+            'facility_type_id' => $request->facility_type_id,
+            'description' => $request->description ?? '',
+            'quantity' => $request->quantity,
+            'expected_capacity' => $request->expectedCapacity ?? 0,
+            'max_capacity' => $request->maxCapacity ?? 0,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -104,14 +100,30 @@ class FacilityController extends Controller
         ]);
     }
 
+    public function editFacilityType(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:50|unique:facility_types,name,'.$id,
+        ]);
+
+         $facilityType = FacilityType::findOrFail($id);
+
+        $facilityType->update([
+            'name' => trim($request->name),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Facility Type updated successfully',
+            'facilityType' => new FacilityTypeResource($facilityType)
+        ]);
+    }
+
+
     public function archiveFacility(Request $request, $id)
     {
-        // Find the facility and check if it's active
-        $facility = Facility::where('id', $id)->where('is_active', 1)->firstOrFail();
-
-        // Archive the facility
-        $facility->is_active = 0;
-        $facility->save();
+        $facility = Facility::findOrFail($id);
+        $facility->delete();
 
         return response()->json([
             'success' => true,
@@ -120,29 +132,51 @@ class FacilityController extends Controller
         ]);
     }
 
+    public function archiveFacilityType(Request $request, $id)
+    {
+        $facilityType = FacilityType::findOrFail($id);
+        $facilityType->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Facility Type archived successfully',
+            'facilityType' => new FacilityTypeResource($facilityType)
+        ]);
+    }
+
     public function viewArchivedFacilities()
     {
-        $facilities = Facility::where('is_active', 0)
-            ->with('facilityType')
-            ->orderBy('name')
-            ->get();
-
+        $facilities = Facility::onlyTrashed()->with('facilityType')->orderBy('name')->get();
         return FacilityResource::collection($facilities);
+    }
+
+    public function viewArchivedFacilityTypes()
+    {
+        $facilityTypes = FacilityType::onlyTrashed()->orderBy('name')->get();
+        return FacilityTypeResource::collection($facilityTypes);
     }
 
     public function restoreFacility(Request $request, $id)
     {
-        // Find the archived facility
-        $facility = Facility::where('id', $id)->where('is_active', 0)->firstOrFail();
-
-        // Restore the facility
-        $facility->is_active = 1;
-        $facility->save();
+        $facility = Facility::onlyTrashed()->findOrFail($id);
+        $facility->restore();
 
         return response()->json([
             'success' => true,
             'message' => 'Facility restored successfully',
             'facility' => new FacilityResource($facility)
+        ]);
+    }
+
+    public function restoreFacilityType(Request $request, $id)
+    {
+        $facilityType = FacilityType::onlyTrashed()->findOrFail($id);
+        $facilityType->restore();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Facility Type restored successfully',
+            'facilityType' => new FacilityTypeResource($facilityType)
         ]);
     }
 }

@@ -3,42 +3,60 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Rate extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'rates';
 
+    public $timestamps = true;
+
     protected $fillable = [
-        'rate_name',
         'rate_category',
         'facility_id',
+        'guest_type_id',
         'rate_type',
+        'duration_hours',
         'time_period',
         'base_rate',
-        'duration_hours',
-        'duration_type',
-        'applicable_hours',
-        'max_booking_time',
         'description',
         'status',
         'extension_fee',
-        'is_active',
+        
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'base_rate' => 'decimal:2',
-            'duration_hours' => 'decimal:2',
-            'extension_fee' => 'decimal:2',
-            'is_active' => 'boolean',
-            'created_at' => 'datetime',
-            'updated_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'facility_id' => 'integer',
+        'guest_type_id' => 'integer',
+        'duration_hours' => 'integer',
+        'base_rate' => 'decimal:2',
+        'extension_fee' => 'decimal:2'
+    ];
 
     public function facility()
     {
         return $this->belongsTo(Facility::class);
+    }
+
+    public function guestType()
+    {
+        return $this->belongsTo(GuestType::class);
+    }
+
+    public function rateDiscounts()
+    {
+        return $this->hasMany(RateDiscount::class);
+    }
+
+    public function guestMonitoringDetails()
+    {
+        return $this->hasMany(GuestMonitoringDetail::class);
+    }
+
+    public function discounts()
+    {
+        return $this->belongsToMany(Discount::class, 'rate_discounts');
     }
 }

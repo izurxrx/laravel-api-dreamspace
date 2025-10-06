@@ -3,10 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Facility extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'facilities';
+
+    public $timestamps = true;
 
     protected $fillable = [
         'name',
@@ -15,29 +20,26 @@ class Facility extends Model
         'quantity',
         'expected_capacity',
         'max_capacity',
-        'is_active',
-        'booking_types',
-        'cutoff_time',
-        'requires_accommodation',
-        'time_based_booking',
-        'day_based_booking',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'is_active' => 'boolean',
-            'requires_accommodation' => 'boolean',
-            'time_based_booking' => 'boolean',
-            'day_based_booking' => 'boolean',
-            'created_at' => 'datetime',
-            'updated_at' => 'datetime',
-            'cutoff_time' => 'string',
-        ];
-    }
+    protected $casts = [
+        'quantity' => 'integer',
+        'expected_capacity' => 'integer',
+        'max_capacity' => 'integer'
+    ];
 
     public function facilityType()
     {
         return $this->belongsTo(FacilityType::class);
+    }
+
+    public function guestMonitoringDetails()
+    {
+        return $this->hasMany(GuestMonitoringDetail::class);
+    }
+
+    public function rates()
+    {
+        return $this->hasMany(Rate::class);
     }
 }
